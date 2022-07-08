@@ -10,6 +10,7 @@ from PIL import Image
 import os
 import copy
 
+
 class TransformTwice:
     def __init__(self, transform):
         self.transform = transform
@@ -18,6 +19,27 @@ class TransformTwice:
         out1 = self.transform(inp)
         out2 = self.transform(inp)
         return out1, out2
+
+
+class TransformFixMatch:
+    def __init__(self, weak_transform, strong_transform):
+        self.weak_transform = weak_transform
+        self.strong_transform=strong_transform
+    def __call__(self, x):
+        weak = self.weak_transform(x)
+        strong = self.strong_transform(x)
+        return weak, strong
+
+
+class Transform:
+    def __init__(self, transform):
+        self.transform = transform
+
+    def __call__(self, inp):
+        out1 = self.transform(inp)
+        out2 = self.transform(inp)
+        return out1, out2
+
 
 class BaseDataset(Dataset):
     def __init__(self, root_dir, images, labels, transform=None):
@@ -39,7 +61,7 @@ class BaseDataset(Dataset):
         for i, image_name in enumerate(self.images):
             self.image2label[image_name] = copy.deepcopy(self.labels[i])
         # print('Total # samples :{}'.format(len(self.images)))
-    
+
     def __getitem__(self, index):
         """
         Args:
@@ -52,25 +74,25 @@ class BaseDataset(Dataset):
             image_name = os.path.join(self.root_dir, self.images[index] + '.jpg')
         else:
             image_name = os.path.join(self.root_dir, self.images[index])
-        
+
         image = Image.open(image_name).convert('RGB')
         label = self.labels[index]
         if self.transform is not None:
             image = self.transform(image)
         return items, index, image, label
-    
+
     def re_load(self):
         self.images = copy.deepcopy(self.last_images)
         self.labels = copy.deepcopy(self.last_labels)
-    
+
     def update(self, images):
         self.images = copy.deepcopy(images)
         for i, image_name in enumerate(self.images):
             self.labels[i] = copy.deepcopy(self.image2label[image_name])
-             
 
     def __len__(self):
         return len(self.images)
+
 
 class CSVDataset(BaseDataset):
     def __init__(self, root_dir, csv_file, transform=None):
@@ -81,35 +103,35 @@ class CSVDataset(BaseDataset):
                 with corresponding labels.
             transform: optional transform to be applied on a sample.
         """
-        
+
         self.file = pd.read_csv(csv_file)
-        
+
         self.root_dir = root_dir
         self.images = self.file['ImageID'].values
         self.labels = self.file.iloc[:, 1:].values.astype(int)
-        
+
         self.transform = transform
 
 
 class DatasetSplit(Dataset):
-     def __init__(self, dataset, idxs):
+    def __init__(self, dataset, idxs):
         self.dataset = dataset
         self.idxs = list(idxs)
         # print('Total # samples:{}'.format(len(self.idxs)))
 
-     def __len__(self):
+    def __len__(self):
         return len(self.idxs)
 
-     def __getitem__(self, item):
-        items, index, image,  label = self.dataset[self.idxs[item]]
+    def __getitem__(self, item):
+        items, index, image, label = self.dataset[self.idxs[item]]
         return items, index, image, label
 
+
 def onehot_reverse(labels):
-    assert len(labels.shape)==2
+    assert len(labels.shape) == 2
     new_labels = [np.argmax(l) for l in labels]
 
     return new_labels
-
 
 
 def get_Pi(sets, classnum=5, noniid=False):
@@ -126,12 +148,11 @@ def get_Pi(sets, classnum=5, noniid=False):
     Pi = np.array(Pi)
     return Pi
 
-def get_sub_bank_sizes(sub_banks, data_len):
 
+def get_sub_bank_sizes(sub_banks, data_len):
     sub_bank_size = data_len // sub_banks
     sub_bank_sizes = np.ones(sub_banks) * sub_bank_size
     return sub_bank_sizes
-
 
 
 def get_sub_banks(sub_bank_num_perclient, y_train, y_indices, sub_bank_sizes, thetas, classnum=5):
@@ -146,16 +167,17 @@ def get_sub_banks(sub_bank_num_perclient, y_train, y_indices, sub_bank_sizes, th
     start_idx = [0 for i in range(classnum)]
     for i in range(sub_bank_num_perclient):
         size_cls = []
-        if i < sub_bank_num_perclient-1:
+        if i < sub_bank_num_perclient - 1:
             for cls in range(classnum):
-                n_this = int(sub_bank_sizes[i] * thetas[i][cls])    
+                n_this = int(sub_bank_sizes[i] * thetas[i][cls])
                 if cls == 0:
-                    cur_sub_bank = np.array(class_idx[cls][start_idx[cls]:start_idx[cls]+n_this])
+                    cur_sub_bank = np.array(class_idx[cls][start_idx[cls]:start_idx[cls] + n_this])
                 else:
-                    cur_sub_bank = np.concatenate((cur_sub_bank, class_idx[cls][start_idx[cls]:start_idx[cls]+n_this])).astype(int)
+                    cur_sub_bank = np.concatenate(
+                        (cur_sub_bank, class_idx[cls][start_idx[cls]:start_idx[cls] + n_this])).astype(int)
 
-                size_cls.append(len(class_idx[cls][start_idx[cls]:start_idx[cls]+n_this]))
-                start_idx[cls] += len(class_idx[cls][start_idx[cls]:start_idx[cls]+n_this])
+                size_cls.append(len(class_idx[cls][start_idx[cls]:start_idx[cls] + n_this]))
+                start_idx[cls] += len(class_idx[cls][start_idx[cls]:start_idx[cls] + n_this])
                 np.random.shuffle(cur_sub_bank)
 
         # fill the remaining samples
@@ -194,6 +216,30 @@ def get_class_index(targets, classnum=5):
     return indexs
 
 
+def load_data_normal(trian_data, dict_users, clientnum=10):
+    all_train_data = trian_data
+    client_train_data = []
+    client_Pi = []
+    client_priors_corr = []
+
+    for n in range(clientnum):
+        this_sub_bank_temp_targets = all_train_data.labels[list(dict_users[n])]
+        this_sub_bank_temp_data = all_train_data.images[list(dict_users[n])]
+
+        if n == 0:
+            client_bank_temp_data = this_sub_bank_temp_data
+            client_bank_temp_targets = this_sub_bank_temp_targets
+        else:
+            client_bank_temp_data.extend(this_sub_bank_temp_data)
+            client_bank_temp_targets = torch.cat((client_bank_temp_targets, this_sub_bank_temp_targets))
+
+        client_train_data.append({'images': client_bank_temp_data, 'labels': client_bank_temp_targets})
+        client_Pi.append(None)
+        client_priors_corr.append(None)
+
+    return client_train_data, client_priors_corr, client_Pi
+
+
 def load_data(args, trian_data, dict_users, clientnum=10, sub_bank_num_perclient=5, classnum=5, noniid=True):
     all_train_data = trian_data
     client_train_data = []
@@ -205,9 +251,10 @@ def load_data(args, trian_data, dict_users, clientnum=10, sub_bank_num_perclient
         this_Pi = torch.from_numpy(get_Pi(sub_bank_num_perclient, classnum=classnum))
         this_sub_bank_sizes = get_sub_bank_sizes(sub_bank_num_perclient, len(dict_users[n]))
         this_sub_banks, this_priors_corr, this_Pi = get_sub_banks(sub_bank_num_perclient,
-                                                                       onehot_reverse(all_train_data.labels[list(dict_users[n])]),
-                                                                       list(dict_users[n]),
-                                                                       this_sub_bank_sizes, this_Pi, classnum=classnum)
+                                                                  onehot_reverse(
+                                                                      all_train_data.labels[list(dict_users[n])]),
+                                                                  list(dict_users[n]),
+                                                                  this_sub_bank_sizes, this_Pi, classnum=classnum)
         client_Pi.append(torch.from_numpy(this_Pi))
         client_priors_corr.append(this_priors_corr)
         client_bank_temp_data = None
@@ -223,14 +270,7 @@ def load_data(args, trian_data, dict_users, clientnum=10, sub_bank_num_perclient
             else:
                 client_bank_temp_data.extend(this_sub_bank_temp_data)
                 client_bank_temp_targets = torch.cat((client_bank_temp_targets, this_sub_bank_temp_targets))
-          
+
         client_train_data.append({'images': client_bank_temp_data, 'labels': client_bank_temp_targets})
-       
+
     return client_train_data, client_priors_corr, client_Pi
-
-
-
-
-
-
-

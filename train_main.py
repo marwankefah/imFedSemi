@@ -397,10 +397,14 @@ if __name__ == '__main__':
                 , save_mode_path)
             client_AUC, client_Acc, client_Sen, client_Spe, client_F1, test_loss = test(args, com_round, None,
                                                                                         save_mode_path, False)
+            client_AUC_avg, client_Acc_avg, client_Sen_avg, client_Spe_avg, client_F1_avg = np.mean(
+                client_AUC), np.mean(client_Acc), np.mean(client_Sen), np.mean(client_Spe), np.mean(client_F1)
+
             logging.info("\nTEST Epoch: {}".format(com_round))
             logging.info("TEST AUC: {:6f}, Acc: {:6f}, Sen: {:6f}, Spe: {:6f}, F1: {:6f}"
                          .format(np.mean(client_AUC), np.mean(client_Acc), np.mean(client_Sen), np.mean(client_Spe),
                                  np.mean(client_F1)))
+
             writer_test.add_scalar('val_auc', client_AUC_avg, global_step=com_round)
             writer_test.add_scalar('val_acc', client_Acc_avg, global_step=com_round)
             writer_test.add_scalar('val_sen', client_Sen_avg, global_step=com_round)

@@ -1,3 +1,5 @@
+import time
+
 from validation import epochVal_metrics_test
 from options import args_parser
 import os
@@ -17,6 +19,8 @@ from local_supervised import SupervisedLocalUpdate
 from local_unsupervised import UnsupervisedLocalUpdate
 from torch.utils.data import DataLoader
 import warnings
+from torch.utils.tensorboard import SummaryWriter
+
 warnings.filterwarnings("ignore")
 
 
@@ -129,24 +133,7 @@ if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
     '''FL Setings'''
-    
-    metrics_log = {
-        'train_loss':[],
-        'val_loss':[],
-        'val_auc':[],
-        'val_acc':[],
-        'val_sen':[],
-        'val_spe':[],
-        'val_f1':[],
-    }
-    test_metrics = {
-        'test_loss':[],
-        'test_auc':[],
-        'test_acc':[],
-        'test_sen':[],
-        'test_spe':[],
-        'test_f1':[],
-    }
+
     best_auc = 0
     
 
@@ -159,10 +146,17 @@ if __name__ == '__main__':
     # num = len(unsupervised_user_id)
     args.class_num = 5 if args.dataset == 'brain' else 7
     args.sub_bank_num = 5 if args.dataset == 'brain' else 7
+
     snapshot_path = f'./models/{args.dataset}/'
- 
+    snapshot_path = os.path.join(snapshot_path, str(int(time.time())))
+
     if not os.path.exists(snapshot_path): os.makedirs(snapshot_path)
     if not os.path.exists(f'./logs/{args.dataset}'): os.makedirs(f'./logs/{args.dataset}')
+
+    writer = SummaryWriter(os.path.join(snapshot_path, 'log'))
+    writer_test = SummaryWriter(os.path.join(snapshot_path, 'log_test'))
+    writer_val = SummaryWriter(os.path.join(snapshot_path, 'log_val'))
+
     print('Exp path:', snapshot_path)
     logging.basicConfig(filename=f'./logs/{args.dataset}/log.txt', 
                     level=logging.INFO,
@@ -220,6 +214,9 @@ if __name__ == '__main__':
             net_glob.load_state_dict(w_glob)
             server_optim = copy.deepcopy(op)
             loss_locals.append(copy.deepcopy(loss))
+            writer.add_scalar('Supervised loss on Server', loss, global_step=com_round)
+            logging.info('Warmup round {}, Supervised loss on server : {}'.format(com_round, loss))
+
         else:        
             '''Client training'''
             if  not flag_create : 
@@ -238,6 +235,9 @@ if __name__ == '__main__':
                 w_locals[idx] = copy.deepcopy(w)
                 optim_locals[idx] = copy.deepcopy(op)
                 loss_locals.append(copy.deepcopy(loss))
+                writer.add_scalar('Unsupervised loss on unsup client %d' % idx, loss, global_step=com_round)
+                logging.info('Unsupervised loss on unsup client {}: {}'.format(idx, loss))
+
             # Aggregation           
             with torch.no_grad():
                 w_glob = FedAvg(w_locals)
@@ -252,26 +252,30 @@ if __name__ == '__main__':
             net_glob.load_state_dict(w_glob)
             server_optim = copy.deepcopy(op)
             loss_locals.append(copy.deepcopy(loss))
-            
+            writer.add_scalar('Supervised loss on Server', loss, global_step=com_round)
+            logging.info('Supervised loss on server : {}'.format(loss))
+
             '''Broadcast clients models'''
             for i in unsupervised_user_id:
                 net_locals[i].load_state_dict(w_glob)
  
         loss_avg = sum(loss_locals) / len(loss_locals)
-        metrics_log['train_loss'].append(loss_avg)
         logging.info('Loss Avg {} Round {} LR {} '.format(loss_avg, com_round, args.base_lr))
+        logging.info('Loss Avg {} Round {} LR {} '.format(loss_avg, com_round, args.base_lr))
+        writer.add_scalar('train loss average', loss_avg, global_step=com_round)
 
         # Evaluation and Test
         if com_round % EVAL == 0:
             client_AUC, client_Acc, client_Sen, client_Spe, client_F1, val_loss = test(args, com_round, net_glob, None, True)
             client_AUC_avg, client_Acc_avg, client_Sen_avg, client_Spe_avg, client_F1_avg = np.mean(client_AUC), np.mean(client_Acc), np.mean(client_Sen), np.mean(client_Spe), np.mean(client_F1)
-            
-            metrics_log['val_auc'].append(client_AUC_avg)
-            metrics_log['val_acc'].append(client_Acc_avg)
-            metrics_log['val_sen'].append(client_Sen_avg)
-            metrics_log['val_spe'].append(client_Spe_avg)
-            metrics_log['val_f1'].append(client_F1_avg)
-            metrics_log['val_loss'].append(val_loss)
+
+            writer_val.add_scalar('val_auc', client_AUC_avg, global_step=com_round)
+            writer_val.add_scalar('val_acc', client_Acc_avg, global_step=com_round)
+            writer_val.add_scalar('val_sen', client_Sen_avg, global_step=com_round)
+            writer_val.add_scalar('val_spe', client_Spe_avg, global_step=com_round)
+            writer_val.add_scalar('val_f1', client_F1_avg, global_step=com_round)
+            writer_val.add_scalar('val_loss', val_loss, global_step=com_round)
+
             logging.info("\nVal Epoch: {}".format(com_round))
             logging.info("Val AUC: {:6f}, Acc: {:6f}, Sen: {:6f}, Spe: {:6f}, F1: {:6f}"
                     .format(client_AUC_avg, client_Acc_avg, client_Sen_avg, client_Spe_avg, client_F1_avg))
@@ -287,7 +291,14 @@ if __name__ == '__main__':
                 
                 client_AUC, client_Acc, client_Sen, client_Spe, client_F1, test_loss = test(args, com_round, None, save_mode_path, False)
                 client_AUC_avg, client_Acc_avg, client_Sen_avg, client_Spe_avg, client_F1_avg = np.mean(client_AUC), np.mean(client_Acc), np.mean(client_Sen), np.mean(client_Spe), np.mean(client_F1)
-                
+
+                writer_test.add_scalar('val_auc', client_AUC_avg, global_step=com_round)
+                writer_test.add_scalar('val_acc', client_Acc_avg, global_step=com_round)
+                writer_test.add_scalar('val_sen', client_Sen_avg, global_step=com_round)
+                writer_test.add_scalar('val_spe', client_Spe_avg, global_step=com_round)
+                writer_test.add_scalar('val_f1', client_F1_avg, global_step=com_round)
+                writer_test.add_scalar('val_loss', test_loss, global_step=com_round)
+
                 logging.info("\nBest Test Epoch: {}".format(com_round))
                 logging.info("Best Test AUC: {:6f}, Acc: {:6f}, Sen: {:6f}, Spe: {:6f}, F1: {:6f}"
                     .format(client_AUC_avg, client_Acc_avg, client_Sen_avg, client_Spe_avg, client_F1_avg))
@@ -303,18 +314,16 @@ if __name__ == '__main__':
             logging.info("\nTEST Epoch: {}".format(com_round))
             logging.info("TEST AUC: {:6f}, Acc: {:6f}, Sen: {:6f}, Spe: {:6f}, F1: {:6f}"
                     .format(np.mean(client_AUC), np.mean(client_Acc), np.mean(client_Sen), np.mean(client_Spe), np.mean(client_F1)))
-            test_metrics['test_auc'].append(client_AUC_avg)
-            test_metrics['test_acc'].append(client_Acc_avg)
-            test_metrics['test_sen'].append(client_Sen_avg)
-            test_metrics['test_spe'].append(client_Spe_avg)
-            test_metrics['test_f1'].append(client_F1_avg)
-            test_metrics['test_loss'].append(val_loss)
-   
-    metrics_pd = pd.DataFrame.from_dict(metrics_log)
-    metrics_pd.to_csv(os.path.join(snapshot_path,"val_metrics.csv"))
-    metrics_pd = pd.DataFrame.from_dict(test_metrics)
-    metrics_pd.to_csv(os.path.join(snapshot_path,"test_metrics.csv"))
+            client_AUC_avg, client_Acc_avg, client_Sen_avg, client_Spe_avg, client_F1_avg = np.mean(
+                client_AUC), np.mean(client_Acc), np.mean(client_Sen), np.mean(client_Spe), np.mean(client_F1)
 
-            
+            writer_test.add_scalar('val_auc', client_AUC_avg, global_step=com_round)
+            writer_test.add_scalar('val_acc', client_Acc_avg, global_step=com_round)
+            writer_test.add_scalar('val_sen', client_Sen_avg, global_step=com_round)
+            writer_test.add_scalar('val_spe', client_Spe_avg, global_step=com_round)
+            writer_test.add_scalar('val_f1', client_F1_avg, global_step=com_round)
+            writer_test.add_scalar('val_loss', test_loss, global_step=com_round)
+
+
 
             

@@ -151,23 +151,7 @@ if __name__ == '__main__':
 
     '''FL Setings'''
 
-    metrics_log = {
-        'train_loss': [],
-        'val_loss': [],
-        'val_auc': [],
-        'val_acc': [],
-        'val_sen': [],
-        'val_spe': [],
-        'val_f1': [],
-    }
-    test_metrics = {
-        'test_loss': [],
-        'test_auc': [],
-        'test_acc': [],
-        'test_sen': [],
-        'test_spe': [],
-        'test_f1': [],
-    }
+
     best_auc = 0
 
     supervised_user_id = []
@@ -296,7 +280,6 @@ if __name__ == '__main__':
                 net_locals[i].load_state_dict(w_glob)
 
         loss_avg = sum(loss_locals) / len(loss_locals)
-        metrics_log['train_loss'].append(loss_avg)
         logging.info('Loss Avg {} Round {} LR {} '.format(loss_avg, com_round, args.base_lr))
         writer.add_scalar('train loss average', loss_avg, global_step=com_round)
 

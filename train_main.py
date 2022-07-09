@@ -335,6 +335,7 @@ if __name__ == '__main__':
             loss_locals.append(copy.deepcopy(loss))
 
             writer.add_scalar('Supervised loss on Server', loss, global_step=com_round)
+            logging.info('Supervised loss on server : {}'.format( loss))
 
             '''Broadcast clients models'''
             for i in unsupervised_user_id:

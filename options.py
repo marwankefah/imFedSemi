@@ -22,5 +22,16 @@ def args_parser():
      parser.add_argument('--hi_lp', type=float,  default=0.9, help='confidence for label proportion estimation degree')
      parser.add_argument('--lo_lp', type=float,  default=0.5, help='confidence for label proportion estimation degree')
      parser.add_argument('--label_uncertainty', type=str,  default='U-Ones', help='label type')
+     parser.add_argument('--lambda-u', default=1, type=float,
+                         help='coefficient of unlabeled loss')
+     parser.add_argument('--threshold', default=0.95, type=float,
+                         help='pseudo label threshold')
+     parser.add_argument('--T', default=1, type=float,
+                         help='pseudo label temperature')
+
+     parser.add_argument('--meta_round', type=int, default=3, help='number of sub-consensus groups')
+     parser.add_argument('--meta_client_num', type=int, default=5, help='number of clients in each sub-consensus group')
+     parser.add_argument('--dist_scale', type=float or int, default=1e4,
+                         help='scale factor when computing model distance')
      args = parser.parse_args()
      return args

@@ -148,6 +148,7 @@ def prepare_data(args, supervised_user_id, unsupervised_user_id):
 
 if __name__ == '__main__':
     args = args_parser()
+    #does not make sense because import torch
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
     '''FL Setings'''

@@ -23,7 +23,7 @@ class UnsupervisedLocalUpdate(object):
         self.priors_corr = priors_corr
         self.temp_bank = []
         self.permanent_bank = set()
-        self.real_Pi = list(Pi.numpy())
+        # self.real_Pi = list(Pi.numpy())
 
     def train(self, args, net, op_dict, epoch):
         net.cuda()

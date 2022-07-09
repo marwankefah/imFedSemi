@@ -23,9 +23,9 @@ class UnsupervisedLocalUpdate(object):
         self.priors_corr = priors_corr
         self.temp_bank = []
         self.permanent_bank = set()
-        self.real_Pi = list(Pi.numpy())
+        # self.real_Pi = list(Pi.numpy())
 
-    def train(self, args, net, op_dict, epoch):
+    def train(self, args, net, op_dict, epoch,logging):
         net.cuda()
         net.train()
         self.optimizer = torch.optim.Adam(net.parameters(), lr=args.base_lr, betas=(0.9, 0.999), weight_decay=5e-4)

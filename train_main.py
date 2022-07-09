@@ -261,7 +261,6 @@ if __name__ == '__main__':
  
         loss_avg = sum(loss_locals) / len(loss_locals)
         logging.info('Loss Avg {} Round {} LR {} '.format(loss_avg, com_round, args.base_lr))
-        logging.info('Loss Avg {} Round {} LR {} '.format(loss_avg, com_round, args.base_lr))
         writer.add_scalar('train loss average', loss_avg, global_step=com_round)
 
         # Evaluation and Test

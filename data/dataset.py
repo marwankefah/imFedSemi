@@ -24,7 +24,8 @@ class TransformTwice:
 class TransformFixMatch:
     def __init__(self, weak_transform, strong_transform):
         self.weak_transform = weak_transform
-        self.strong_transform=strong_transform
+        self.strong_transform = strong_transform
+
     def __call__(self, x):
         weak = self.weak_transform(x)
         strong = self.strong_transform(x)
@@ -223,17 +224,17 @@ def load_data_normal(trian_data, dict_users, clientnum=10):
     client_priors_corr = []
 
     for n in range(clientnum):
-        this_sub_bank_temp_targets = all_train_data.labels[list(dict_users[n])]
-        this_sub_bank_temp_data = all_train_data.images[list(dict_users[n])]
+        this_sub_bank_temp_data = list(all_train_data.images[list(dict_users[n])])
+        this_sub_bank_temp_targets = torch.tensor(onehot_reverse(all_train_data.labels[list(dict_users[n])]))
+        #
+        # if n == 0:
+        #     client_bank_temp_data = this_sub_bank_temp_data
+        #     client_bank_temp_targets = this_sub_bank_temp_targets
+        # else:
+        #     client_bank_temp_data.extend(this_sub_bank_temp_data)
+        #     client_bank_temp_targets = torch.cat((client_bank_temp_targets, this_sub_bank_temp_targets))
 
-        if n == 0:
-            client_bank_temp_data = this_sub_bank_temp_data
-            client_bank_temp_targets = this_sub_bank_temp_targets
-        else:
-            client_bank_temp_data.extend(this_sub_bank_temp_data)
-            client_bank_temp_targets = torch.cat((client_bank_temp_targets, this_sub_bank_temp_targets))
-
-        client_train_data.append({'images': client_bank_temp_data, 'labels': client_bank_temp_targets})
+        client_train_data.append({'images': this_sub_bank_temp_data, 'labels': this_sub_bank_temp_targets})
         client_Pi.append(None)
         client_priors_corr.append(None)
 

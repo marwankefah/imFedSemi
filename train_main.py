@@ -8,6 +8,8 @@ import random
 import numpy as np
 import pandas as pd
 import copy
+from torch.utils.tensorboard import SummaryWriter
+import time
 from FedAvg import FedAvg
 import torch
 from torchvision import transforms
@@ -177,10 +179,17 @@ if __name__ == '__main__':
     # num = len(unsupervised_user_id)
     args.class_num = 5 if args.dataset == 'brain' else 7
     args.sub_bank_num = 5 if args.dataset == 'brain' else 7
+
     snapshot_path = f'./models/{args.dataset}/'
+    snapshot_path = os.path.join(snapshot_path, str(int(time.time())))
 
     if not os.path.exists(snapshot_path): os.makedirs(snapshot_path)
     if not os.path.exists(f'./logs/{args.dataset}'): os.makedirs(f'./logs/{args.dataset}')
+
+    writer = SummaryWriter(os.path.join(snapshot_path, 'log'))
+    writer_test = SummaryWriter(os.path.join(snapshot_path, 'log_test'))
+    writer_val = SummaryWriter(os.path.join(snapshot_path, 'log_val'))
+
     print('Exp path:', snapshot_path)
     logging.basicConfig(filename=f'./logs/{args.dataset}/log.txt',
                         level=logging.INFO,
@@ -240,6 +249,9 @@ if __name__ == '__main__':
             net_glob.load_state_dict(w_glob)
             server_optim = copy.deepcopy(op)
             loss_locals.append(copy.deepcopy(loss))
+            writer.add_scalar('Supervised loss on Server', loss, global_step=com_round)
+            logging.info('Warmup round {}, Supervised loss on server : {}'.format(com_round, loss))
+
         else:
             '''Client training'''
             if not flag_create:
@@ -259,6 +271,9 @@ if __name__ == '__main__':
                 w_locals[idx] = copy.deepcopy(w)
                 optim_locals[idx] = copy.deepcopy(op)
                 loss_locals.append(copy.deepcopy(loss))
+                writer.add_scalar('Unsupervised loss on unsup client %d' % idx, loss, global_step=com_round)
+                logging.info('Unsupervised loss on unsup client {}: {}'.format(idx, loss))
+
             # Aggregation           
             with torch.no_grad():
                 w_glob = FedAvg(w_locals)
@@ -273,6 +288,8 @@ if __name__ == '__main__':
             net_glob.load_state_dict(w_glob)
             server_optim = copy.deepcopy(op)
             loss_locals.append(copy.deepcopy(loss))
+            writer.add_scalar('Supervised loss on Server', loss, global_step=com_round)
+            logging.info('Supervised loss on server : {}'.format(loss))
 
             '''Broadcast clients models'''
             for i in unsupervised_user_id:
@@ -281,6 +298,7 @@ if __name__ == '__main__':
         loss_avg = sum(loss_locals) / len(loss_locals)
         metrics_log['train_loss'].append(loss_avg)
         logging.info('Loss Avg {} Round {} LR {} '.format(loss_avg, com_round, args.base_lr))
+        writer.add_scalar('train loss average', loss_avg, global_step=com_round)
 
         # Evaluation and Test
         if com_round % EVAL == 0:

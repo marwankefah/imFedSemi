@@ -294,7 +294,7 @@ if __name__ == '__main__':
                 for cli_idx in range(args.meta_client_num):
                     dist = model_dist(w_locals_this_meta_round[cli_idx], w_avg_temp)
                     dist_list.append(dist)
-                print(
+                logging.info(
                     'Normed dist * 1e4 : ' + f'{[dist_list[i] * 1e5 / each_length_this_meta_raw[i] for i in range(args.meta_client_num)]}')
 
                 # Scaling DMA as equation 6-1
@@ -305,7 +305,7 @@ if __name__ == '__main__':
                 total = sum(clt_freq_this_meta_uncer)
                 clt_freq_this_meta_dist = [clt_freq_this_meta_uncer[i] / total for i in range(args.meta_client_num)]
                 clt_freq_this_meta_round = clt_freq_this_meta_dist
-                print('After dist-based uncertainty : ' + f'{clt_freq_this_meta_round}')
+                logging.info('After dist-based uncertainty : ' + f'{clt_freq_this_meta_round}')
 
                 assert sum(clt_freq_this_meta_round) - 1.0 <= 1e-3, "Error: sum(freq) != 0"
                 # subconsenus model with DMA

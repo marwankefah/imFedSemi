@@ -22,7 +22,7 @@ def args_parser():
      parser.add_argument('--hi_lp', type=float,  default=0.9, help='confidence for label proportion estimation degree')
      parser.add_argument('--lo_lp', type=float,  default=0.5, help='confidence for label proportion estimation degree')
      parser.add_argument('--label_uncertainty', type=str,  default='U-Ones', help='label type')
-     parser.add_argument('--lambda-u', default=1, type=float,
+     parser.add_argument('--lambda_u', default=1, type=float,
                          help='coefficient of unlabeled loss')
      parser.add_argument('--threshold', default=0.95, type=float,
                          help='pseudo label threshold')

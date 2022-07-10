@@ -102,7 +102,7 @@ def prepare_data(args, supervised_user_id, unsupervised_user_id):
     trans_strong = transforms.Compose([transforms.Resize((224, 224)),
                                        transforms.RandomAffine(degrees=10, translate=(0.02, 0.02)),
                                        transforms.RandomHorizontalFlip(),
-                                       RandAugmentMC(n=2, m=10),
+                                       # RandAugmentMC(n=2, m=10),
                                        transforms.ToTensor(),
                                        normalize,
                                        ])

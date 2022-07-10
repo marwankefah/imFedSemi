@@ -28,5 +28,11 @@ def args_parser():
                          help='pseudo label threshold')
      parser.add_argument('--T', default=1, type=float,
                          help='pseudo label temperature')
+
+     parser.add_argument('--label_uncertainty', type=str, default='U-Ones', help='label type')
+     parser.add_argument('--ema_decay', type=float, default=0.999, help='ema_decay')
+     parser.add_argument('--consistency', type=float, default=1, help='consistency')
+     parser.add_argument('--consistency_rampup', type=float, default=30, help='consistency_rampup')
+
      args = parser.parse_args()
      return args

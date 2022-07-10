@@ -34,5 +34,11 @@ def args_parser():
      parser.add_argument('--consistency', type=float, default=1, help='consistency')
      parser.add_argument('--consistency_rampup', type=float, default=30, help='consistency_rampup')
 
+     parser.add_argument("--max_grad_norm",
+                         dest="max_grad_norm",
+                         type=float,
+                         default=5,
+                         help="max gradient norm allowed (used for gradient clipping)")
+
      args = parser.parse_args()
      return args

@@ -66,7 +66,7 @@ class UnsupervisedLocalUpdate(object):
             param_group['lr'] = self.base_lr
 
         if self.flag:
-            self.ema_model.load_state_dict(copy.deepcopy(net))
+            self.ema_model.load_state_dict(copy.deepcopy(net.state_dict()))
             self.flag = False
 
         self.epoch = epoch
